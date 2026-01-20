@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>X LLM Optimizer</title>
+  <style>
+    body{font-family:Arial;background:#0f172a;color:#e5e7eb;padding:20px}
+    h1{color:#38bdf8;margin:0 0 10px 0}
+    .muted{color:#94a3b8;font-size:12px;margin-bottom:10px}
+    textarea{
+      width:100%;
+      min-height:260px;
+      height:520px;
+      resize:vertical;
+      background:#020617;
+      color:#e5e7eb;
+      border:1px solid #334155;
+      border-radius:10px;
+      padding:12px;
+      line-height:1.35;
+    }
+    button{padding:10px 12px;border:none;border-radius:8px;background:#38bdf8;color:#020617;font-weight:700;cursor:pointer;margin-top:10px}
+    .card{margin-top:14px;background:#020617;border:1px solid #334155;border-radius:12px;padding:14px}
+    .score{color:#22c55e;font-weight:800}
+    .bad{color:#f87171}
+    pre{white-space:pre-wrap;word-break:break-word}
+  </style>
+</head>
+<body>
+  <h1>X LLM Optimizer</h1>
+  <div class="muted">
+    Uzun flow destekli. Metni LLM anlamı koruyarak optimize eder ve aksiyon olasılıklarına göre skorlar.
+  </div>
+
+  <textarea id="draft" placeholder="Metni buraya yapıştır..."></textarea>
+  <br />
+  <button onclick="go()">Optimize Et</button>
+
+  <div id="out"></div>
+
+<script>
+async function go(){
+  const draft = document.getElementById("draft").value;
+  const out = document.getElementById("out");
+  out.innerHTML = "<div class='card'>Çalışıyor...</div>";
+
+  const res = await fetch("/optimize", {
+    method:"POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({draft})
+  });
+
+  const data = await res.json();
+  if(data.error){
+    out.innerHTML = "<div class='card'><span class='bad'>Hata: " + escapeHtml(data.error) + "</span></div>";
+    return;
+  }
+
+  out.innerHTML = `
+    <div class="card">
+      <div class="score">Skor: ${data.score}/100</div>
+    </div>
+    <div class="card">
+      <b>Hatalar</b>
+      ${(data.issues||[]).map(x=>`<div class="bad">• ${escapeHtml(x)}</div>`).join("")}
+    </div>
+    <div class="card">
+      <b>Optimize Edilmiş Metin</b>
+      <pre>${escapeHtml(data.optimized_text||"")}</pre>
+    </div>
+    <div class="card">
+      <b>Olasılıklar</b>
+      <pre>${escapeHtml(JSON.stringify(data.probs||{}, null, 2))}</pre>
+    </div>
+    <div class="card">
+      <b>Score Breakdown</b>
+      <pre>${escapeHtml(JSON.stringify(data.score_breakdown||{}, null, 2))}</pre>
+    </div>
+  `;
+}
+
+function escapeHtml(s){
+  return (s||"")
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;");
+}
+</script>
+</body>
+</html>
